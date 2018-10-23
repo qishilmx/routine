@@ -4,6 +4,7 @@
  * @Email:  qlcx@tom.com
  * @Filename: interrupt.c
  * @Last modified by:   qlc
+<<<<<<< HEAD
  * @Last modified time: 2018-10-23T10:48:23+08:00
  * @License: GPL
  */
@@ -114,3 +115,8 @@ static __exit void interrupt_exit(void) {
 
 module_init(interrupt_init);
 module_exit(interrupt_exit);
+=======
+ * @Last modified time: 2018-10-22T17:43:59+08:00
+ * @License: GPL
+ */
+>>>>>>> 03d009320c3ecf25729a768df17663b56bc966c7
