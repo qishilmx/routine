@@ -4,7 +4,7 @@
  * @Email:  qlcx@tom.com
  * @Filename: stack_r.c
  * @Last modified by:   qlc
- * @Last modified time: 2018-10-23T12:19:51+08:00
+ * @Last modified time: 2018-10-24T17:43:36+08:00
  * @License: GPL
  */
 #include "stack_r.h"
@@ -13,27 +13,25 @@
 STACK_R *stack_create(unsigned int size) {
   int i = 0;
   STACK_R *stack = NULL;
-
   if (in_interrupt())
     stack = kmalloc(sizeof(*stack), GFP_ATOMIC);
   else
     stack = kmalloc(sizeof(*stack), GFP_KERNEL);
-
   if (IS_ERR_OR_NULL(stack))
     goto stack_kmalloc_err;
-
   if (in_interrupt())
     stack->S_DATA = kmalloc(size, GFP_ATOMIC);
   else
     stack->S_DATA = kmalloc(size, GFP_KERNEL);
-
   if (IS_ERR_OR_NULL(stack->S_DATA))
     goto S_DATA_kmalloc_err;
+
   stack->S_D_SIZE = size;
   stack->S_D_TOP = 0;
   stack->S_D_NUM = 0;
   for (i = 0; i < size; i++)
     stack->S_DATA[i] = '\0';
+
   return stack;
 S_DATA_kmalloc_err:
   kfree(stack);

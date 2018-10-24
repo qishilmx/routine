@@ -4,7 +4,7 @@
  * @Email:  qlcx@tom.com
  * @Filename: wait.c
  * @Last modified by:   qlc
- * @Last modified time: 2018-10-23T16:26:39+08:00
+ * @Last modified time: 2018-10-24T18:32:34+08:00
  * @License: GPL
  */
 #include "stack_r.h"
@@ -23,130 +23,157 @@
 
 MODULE_LICENSE("GPL");
 /*----------------------------开始定义----------------------------*/
-/*定义设备结构体*/
+/*定义字符设备相关结构体*/
 typedef struct {
-  struct cdev dev;
-  dev_t dev_num;
-
-  struct file_operations dev_ops;
-
-  struct class *class;
-  struct device *device;
-
+  dev_t chardev_r_num;
+  struct cdev chardev_r_dev;
+  struct file_operations chardev_r_ops;
+  struct class *chardev_r_class;
+  struct device *chardev_r_device;
+  STACK_R *stacks;
   wait_queue_head_t read, write;
   spinlock_t lock;
+#define OPEN 1
+#define CLOSE 0
   uint8_t flag;
-  STACK_R *stacks;
-#define START 1
-#define END 0
-} DEV_ST;
+} CHAR_DEV_R;
+CHAR_DEV_R *chardev_r = NULL;
 /*----------------------------定义变量----------------------------*/
-DEV_ST *dev;
 /*----------------------------结束定义----------------------------*/
 /*----------------------------开始添加----------------------------*/
 
-int wait_w_open(struct inode *inode, struct file *file) {
-  DEV_ST *save = container_of(inode->i_cdev, DEV_ST, dev);
-  file->private_data = save;
+/*定义相应操作函数*/
+int chardev_r_open(struct inode *inode, struct file *file) {
+  /*保存不会被内核改变的数据*/
+  CHAR_DEV_R *c = container_of(inode->i_cdev, CHAR_DEV_R, chardev_r_dev);
+  file->private_data = c;
   return 0;
 }
-int wait_w_release(struct inode *inode, struct file *file) { return 0; }
-
-ssize_t wait_w_read(struct file *file, char __user *ubuf, size_t size,
-                    loff_t *off) {
-  DEV_ST *save = file->private_data;
+int chardev_r_release(struct inode *inode, struct file *file) { return 0; }
+ssize_t chardev_r_read(struct file *file, char __user *buffer, size_t size,
+                       loff_t *pos) {
   int ret = 0;
-  if (file->f_flags & O_NONBLOCK) { //非阻塞读
-    if (save->stacks->S_D_TOP == 0)
-      return 0;
-  } else { //阻塞读
-    if (save->stacks->S_D_TOP == 0)
-      wait_event_interruptible(save->read, (save->stacks->S_D_TOP > 0));
+  CHAR_DEV_R *c = file->private_data;
+  if ((file->f_flags & O_NONBLOCK) && (c->stacks->S_D_TOP > 0))
+    return 0;
+  else {
+    if (c->stacks->S_D_TOP == 0)
+      wait_event_interruptible(c->read, (c->stacks->S_D_TOP > 0));
   }
-
-  ret = stack_pop(save->stacks, ubuf, size);
-  wake_up(&save->write);
+  ret = stack_pop(c->stacks, buffer, size);
+  wake_up(&c->write);
   return ret;
 }
-ssize_t wait_w_write(struct file *file, const char __user *ubuf, size_t size,
-                     loff_t *off) {
-  DEV_ST *save = file->private_data;
+ssize_t chardev_r_write(struct file *file, const char __user *buffer,
+                        size_t size, loff_t *pos) {
   int ret = 0;
-  if (file->f_flags & O_NONBLOCK) {
-    if (save->stacks->S_D_TOP == save->stacks->S_D_SIZE)
-      return 0;
-  } else {
-    if (save->stacks->S_D_TOP == save->stacks->S_D_SIZE)
-      wait_event_interruptible(
-          save->write, (save->stacks->S_D_TOP < save->stacks->S_D_SIZE));
+  CHAR_DEV_R *c = file->private_data;
+  if ((file->f_flags & O_NONBLOCK) && c->stacks->S_D_TOP == c->stacks->S_D_SIZE)
+    return 0;
+  else {
+    if (c->stacks->S_D_TOP == c->stacks->S_D_SIZE)
+      wait_event_interruptible(c->write,
+                               (c->stacks->S_D_TOP < c->stacks->S_D_SIZE));
   }
-  ret = stack_push(save->stacks, ubuf, size);
-  wake_up(&save->read);
+  ret = stack_push(c->stacks, buffer, size);
+  wake_up(&c->read);
   return ret;
 }
-
-long wait_w_ioctl(struct file *file, unsigned int cmd, unsigned long arg) {
+long chardev_r_unlocked_ioctl(struct file *file, unsigned int cmd,
+                              unsigned long data) {
   return 0;
+}
+
+CHAR_DEV_R *chardev_r_create(void) {
+  int ret = 0;
+  CHAR_DEV_R *cdr;
+  cdr = kzalloc(sizeof(*cdr), GFP_KERNEL);
+  if (IS_ERR_OR_NULL(cdr))
+    goto kzalloc_err;
+  /*      申请设备号并注册    */
+  ret = alloc_chrdev_region(&cdr->chardev_r_num, 0, 1, "chardev_r");
+  if (ret) {
+    PERR("alloc chardev_r chrdev region err\n");
+    goto alloc_chardev_r_chrdev_region_err;
+  }
+  /*初始化设备*/
+  cdev_init(&cdr->chardev_r_dev, &cdr->chardev_r_ops);
+
+  /*初始化相应操作函数*/
+  cdr->chardev_r_ops.open = chardev_r_open;
+  cdr->chardev_r_ops.release = chardev_r_release;
+  cdr->chardev_r_ops.read = chardev_r_read;
+  cdr->chardev_r_ops.write = chardev_r_write;
+  cdr->chardev_r_ops.unlocked_ioctl = chardev_r_unlocked_ioctl;
+
+  /*添加设备*/
+  ret = cdev_add(&cdr->chardev_r_dev, cdr->chardev_r_num, 1);
+  if (ret) {
+    PERR("cdev_add_chardev_r_device_err\n");
+    goto cdev_add_chardev_r_device_err;
+  }
+
+  cdr->chardev_r_class = class_create(THIS_MODULE, "chardev_r");
+  if (IS_ERR_OR_NULL(cdr->chardev_r_class)) {
+    PERR("chardev_r_class_create_err\n");
+    ret = -ENOMEM;
+    goto chardev_r_class_create_err;
+  }
+  cdr->chardev_r_device = device_create(cdr->chardev_r_class, NULL,
+                                        cdr->chardev_r_num, NULL, "dev_wait");
+  if (IS_ERR_OR_NULL(cdr->chardev_r_device)) {
+    PERR("chardev_r_device_create_err\n");
+    ret = -ENOMEM;
+    goto chardev_r_device_create_err;
+  }
+
+  return cdr;
+chardev_r_device_create_err:
+  class_destroy(cdr->chardev_r_class);
+chardev_r_class_create_err:
+  cdev_del(&cdr->chardev_r_dev);
+cdev_add_chardev_r_device_err:
+  unregister_chrdev_region(cdr->chardev_r_num, 1);
+alloc_chardev_r_chrdev_region_err:
+  kfree(cdr);
+kzalloc_err:
+  return NULL;
+}
+
+void chardev_r_destroy(CHAR_DEV_R *cdr) {
+  device_destroy(cdr->chardev_r_class, cdr->chardev_r_num);
+  class_destroy(cdr->chardev_r_class);
+  cdev_del(&cdr->chardev_r_dev);
+  unregister_chrdev_region(cdr->chardev_r_num, 1);
+  kfree(cdr);
 }
 
 /*----------------------------结束添加----------------------------*/
 static __init int Basics_init(void) {
   /*开始添加*/
-  dev = kmalloc(sizeof(*dev), GFP_KERNEL);
-  if (IS_ERR_OR_NULL(dev))
-    goto dev_kmalloc_err;
-  spin_lock_init(&dev->lock);
-  init_waitqueue_head(&dev->read);
-  init_waitqueue_head(&dev->write);
-  dev->flag = END;
-  dev->stacks = stack_create(100);
-  if (IS_ERR_OR_NULL(dev->stacks))
+  chardev_r = chardev_r_create();
+  if (IS_ERR_OR_NULL(chardev_r))
+    goto chardev_r_create_err;
+  chardev_r->stacks = stack_create(100);
+  if (IS_ERR_OR_NULL(chardev_r->stacks))
     goto stack_create_err;
-  if (alloc_chrdev_region(&dev->dev_num, 0, 1, "dev_wait"))
-    goto alloc_chrdev_region_err;
-  dev->dev_ops.open = wait_w_open;
-  dev->dev_ops.release = wait_w_release;
-  dev->dev_ops.read = wait_w_read;
-  dev->dev_ops.write = wait_w_write;
-  dev->dev_ops.unlocked_ioctl = wait_w_ioctl;
-
-  cdev_init(&dev->dev, &dev->dev_ops);
-  if (cdev_add(&dev->dev, dev->dev_num, 1))
-    goto cdev_add_err;
-  dev->class = class_create(THIS_MODULE, "dev_wait");
-  if (IS_ERR_OR_NULL(dev->class))
-    goto class_create_err;
-  dev->device = device_create(dev->class, NULL, dev->dev_num, NULL, "dev_wait");
-  if (IS_ERR_OR_NULL(dev->device))
-    goto device_create_err;
-
+  spin_lock_init(&chardev_r->lock);
+  init_waitqueue_head(&chardev_r->read);
+  init_waitqueue_head(&chardev_r->write);
   /*暂停添加*/
   PERR("INIT\n");
   return 0;
 /*继续添加*/
-device_create_err:
-  class_destroy(dev->class);
-class_create_err:
-  cdev_del(&dev->dev);
-cdev_add_err:
-  unregister_chrdev_region(dev->dev_num, 1);
-alloc_chrdev_region_err:
-  stack_destroy(dev->stacks);
 stack_create_err:
-  kfree(dev);
-dev_kmalloc_err:
+  chardev_r_destroy(chardev_r);
+chardev_r_create_err:
   return -ENOMEM;
   /*结束添加*/
 }
 
 static __exit void Basics_exit(void) {
   /*开始添加*/
-  device_destroy(dev->class, dev->dev_num);
-  class_destroy(dev->class);
-  cdev_del(&dev->dev);
-  unregister_chrdev_region(dev->dev_num, 1);
-  stack_destroy(dev->stacks);
-  kfree(dev);
+  chardev_r_destroy(chardev_r);
   /*结束添加*/
   PERR("EXIT\n");
   return;
