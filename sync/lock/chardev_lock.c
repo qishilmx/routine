@@ -4,7 +4,7 @@
  * @Email:  qlcx@tom.com
  * @Filename: chardev_lock.c
  * @Last modified by:   qlc
- * @Last modified time: 2018-10-23T11:50:24+08:00
+ * @Last modified time: 2018-10-24T19:13:01+08:00
  * @License: GPL
  */
 #include "led.h"
@@ -16,7 +16,7 @@
  * @Email:  qlcx@tom.com
  * @Filename: chardev.c
  * @Last modified by:   qlc
- * @Last modified time: 2018-10-23T11:50:24+08:00
+ * @Last modified time: 2018-10-24T19:13:01+08:00
  * @License: GPL
  */
 #include "led.h"
