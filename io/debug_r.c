@@ -4,7 +4,7 @@
  * @Email:  qlcx@tom.com
  * @Filename: debug.c
  * @Last modified by:   qlc
- * @Last modified time: 2018-10-23T17:18:11+08:00
+ * @Last modified time: 2018-10-24T19:21:50+08:00
  * @License: GPL
  */
 #include <fcntl.h>
@@ -22,7 +22,7 @@ int main(int argc, char const *argv[]) {
 
   int fd = 0, efd = 0, ret = 0;
   struct epoll_event event = {0};
-  fd = open("/dev/mystack_wait_queue", O_RDONLY);
+  fd = open("/dev/dev_wait", O_RDONLY);
   if (fd < 0) {
     perror("open");
     return fd;

@@ -4,7 +4,7 @@
  * @Email:  qlcx@tom.com
  * @Filename: dev.c
  * @Last modified by:   qlc
- * @Last modified time: 2018-10-24T16:13:39+08:00
+ * @Last modified time: 2018-10-24T19:50:58+08:00
  * @License: GPL
  */
 #include <linux/device.h>
@@ -17,29 +17,30 @@
   } while (0)
 
 MODULE_LICENSE("GPL");
-/*----------------------------开始定义----------------------------*/
-extern struct bus_type bus;
-void dev_release(struct device *dev) {}
-/*----------------------------结束定义----------------------------*/
 /*----------------------------开始添加----------------------------*/
+extern struct bus_type bus;
+
+void dev_release(struct device *d) {}
+
 struct device dev = {
-    .init_name = "dev_led",
+    .init_name = "led",
     .release = dev_release,
     .bus = &bus,
-    .platform_data = "dev_led",
+    .platform_data = "led",
 };
+
 /*----------------------------结束添加----------------------------*/
-static __init int Basics_init(void) {
+static __init int dev_init(void) {
   /*开始添加*/
+  device_register(&dev);
   /*暂停添加*/
   PERR("INIT\n");
-  return device_register(&dev);
-  ;
+  return 0;
   /*继续添加*/
   /*结束添加*/
 }
 
-static __exit void Basics_exit(void) {
+static __exit void dev_exit(void) {
   /*开始添加*/
   device_unregister(&dev);
   /*结束添加*/
@@ -47,5 +48,5 @@ static __exit void Basics_exit(void) {
   return;
 }
 
-module_init(Basics_init);
-module_exit(Basics_exit);
+module_init(dev_init);
+module_exit(dev_exit);

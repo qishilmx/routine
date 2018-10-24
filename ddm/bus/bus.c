@@ -4,7 +4,7 @@
  * @Email:  qlcx@tom.com
  * @Filename: bus.c
  * @Last modified by:   qlc
- * @Last modified time: 2018-10-24T15:07:11+08:00
+ * @Last modified time: 2018-10-24T19:47:35+08:00
  * @License: GPL
  */
 #include <linux/device.h>
@@ -17,19 +17,19 @@
   } while (0)
 
 MODULE_LICENSE("GPL");
-/*----------------------------开始定义----------------------------*/
-int bus_match(struct device *dev, struct device_driver *dri) {
-  if (strcmp((char *)dev->platform_data, dri->name))
+/*----------------------------开始添加----------------------------*/
+int bus_match(struct device *e, struct device_driver *r) {
+  if (strcmp(e->platform_data, r->name))
     return 0;
   return 1;
 }
-/*----------------------------结束定义----------------------------*/
-/*----------------------------开始添加----------------------------*/
+
 struct bus_type bus = {
     .name = "bus", .match = bus_match,
 };
+EXPORT_SYMBOL(bus);
 /*----------------------------结束添加----------------------------*/
-static __init int Basics_init(void) {
+static __init int bus_init(void) {
   /*开始添加*/
   bus_register(&bus);
   /*暂停添加*/
@@ -39,7 +39,7 @@ static __init int Basics_init(void) {
   /*结束添加*/
 }
 
-static __exit void Basics_exit(void) {
+static __exit void bus_exit(void) {
   /*开始添加*/
   bus_unregister(&bus);
   /*结束添加*/
@@ -47,5 +47,5 @@ static __exit void Basics_exit(void) {
   return;
 }
 
-module_init(Basics_init);
-module_exit(Basics_exit);
+module_init(bus_init);
+module_exit(bus_exit);

@@ -4,7 +4,7 @@
  * @Email:  qlcx@tom.com
  * @Filename: debug.c
  * @Last modified by:   qlc
- * @Last modified time: 2018-10-23T17:16:56+08:00
+ * @Last modified time: 2018-10-24T19:24:07+08:00
  * @License: GPL
  */
 #include <fcntl.h>
@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/epoll.h>
-
+char buf[100] = "asdsadasdsadasdadasdasdada\n\n";
 int main(int argc, char const *argv[]) {
   int fd = 0, efd = 0, ret = 0;
   struct epoll_event e = {'\0'};
@@ -46,7 +46,8 @@ int main(int argc, char const *argv[]) {
       continue;
     }
     if (ret == 1) {
-      write(e.data.fd, argv[1], strlen(argv[1]) - 1);
+      // write(e.data.fd, argv[1], strlen(argv[1]) - 1);
+      write(e.data.fd, buf, strlen(buf) - 1);
     }
   }
   close(efd);

@@ -4,7 +4,7 @@
  * @Email:  qlcx@tom.com
  * @Filename: dri.c
  * @Last modified by:   qlc
- * @Last modified time: 2018-10-24T17:13:16+08:00
+ * @Last modified time: 2018-10-24T19:54:48+08:00
  * @License: GPL
  */
 #include <linux/device.h>
@@ -17,35 +17,34 @@
   } while (0)
 
 MODULE_LICENSE("GPL");
-/*----------------------------开始定义----------------------------*/
-/*----------------------------结束定义----------------------------*/
 /*----------------------------开始添加----------------------------*/
-int mydevice_driverprobe(struct device *dev) {
-  PERR("dev->platform_data=%s\n", (char *)(dev->platform_data));
-  return 0;
-}
-int mydevice_driveremove(struct device *dev) {
-  PERR("dev->platform_data=%s\n", (char *)(dev->platform_data));
-  return 0;
-}
 extern struct bus_type bus;
+
+int dri_probe(struct device *d) {
+  PERR("dev->platform_data=%s\n", (char *)(d->platform_data));
+  return 0;
+}
+
+int dri_remove(struct device *d) {
+  PERR("dev->platform_data=%s\n", (char *)(d->platform_data));
+  return 0;
+}
+
 struct device_driver dri = {
-    .name = "dri_led",
-    .bus = &bus,
-    .probe = mydevice_driverprobe,
-    .remove = mydevice_driveremove,
+    .name = "led", .bus = &bus, .probe = dri_probe, .remove = dri_remove,
 };
 /*----------------------------结束添加----------------------------*/
-static __init int Basics_init(void) {
+static __init int dri_init(void) {
   /*开始添加*/
+  driver_register(&dri);
   /*暂停添加*/
   PERR("INIT\n");
-  return driver_register(&dri);
+  return 0;
   /*继续添加*/
   /*结束添加*/
 }
 
-static __exit void Basics_exit(void) {
+static __exit void dri_exit(void) {
   /*开始添加*/
   driver_unregister(&dri);
   /*结束添加*/
@@ -53,5 +52,5 @@ static __exit void Basics_exit(void) {
   return;
 }
 
-module_init(Basics_init);
-module_exit(Basics_exit);
+module_init(dri_init);
+module_exit(dri_exit);
